@@ -44,7 +44,7 @@ def main(inputfile, methods):
    #             json objects
    document = readFromFile(inputfile)
    jsonobjectlist = getJSONs(document, methods)
-   #pprint(jsonobjectlist)
+   pprint(jsonobjectlist)
    print(len(jsonobjectlist))
    return jsonobjectlist
 
