@@ -4,7 +4,7 @@ import sys, getopt
 import json
 from pprint import pprint
 
-def getJSONs(input, methods):
+def get_json_objects(input: str, methods: list) -> list:
    #parse the string containing multiple JSON objects, and filter them by the method list
    index = -1
    decoder = json.JSONDecoder()
@@ -16,7 +16,7 @@ def getJSONs(input, methods):
             results.append(data)
    return results
 
-def sanitizeLine(line):
+def sanitize_line(line: str) -> str:
    #This function will remove all leading whitespaces and filter out all the lines which 
    #which are not part of a json object
    line = line.lstrip()
@@ -24,8 +24,8 @@ def sanitizeLine(line):
       return line[1:].lstrip()
    return ''
 
-def readFromFile(filename):
-   #read the file line by line. Each line will be filtered using the sanitizeLine function and the
+def read_from_file(filename: str) -> str:
+   #read the file line by line. Each line will be filtered using the sanitize_line function and the
    #result will be appended to the string "document"
    #document - output string which will contain multiple JSON objects which are not separated by a
    #comma 
@@ -33,19 +33,18 @@ def readFromFile(filename):
    document = ""
    with open(filename) as fileobject:
     for line in fileobject:
-        cleanline = sanitizeLine(line)
+        cleanline = sanitize_line(line)
         #writefile.write(cleanline)
         document += cleanline
    return document
 
-def main(inputfile, methods):
+def main(inputfile: str, methods: list) -> list:
    # inputfile - filename containing the Truffle --verbose-rpc output
    # methods   - array containing the values of the key 'method' based which we will filter the
    #             json objects
-   document = readFromFile(inputfile)
-   jsonobjectlist = getJSONs(document, methods)
-   pprint(jsonobjectlist)
-   print(len(jsonobjectlist))
+   document = read_from_file(inputfile)
+   jsonobjectlist = get_json_objects(document, methods)
+   #pprint((jsonobjectlist))
    return jsonobjectlist
 
 
