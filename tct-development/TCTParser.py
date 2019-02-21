@@ -2,7 +2,6 @@
 
 import sys, getopt
 import json
-from pprint import pprint
 
 def get_json_objects(input: str, methods: list) -> list:
    #parse the string containing multiple JSON objects, and filter them by the method list
@@ -17,8 +16,8 @@ def get_json_objects(input: str, methods: list) -> list:
    return results
 
 def sanitize_line(line: str) -> str:
-   #This function will remove all leading whitespaces and filter out all the lines which 
-   #which are not part of a json object
+   #This function will remove all leading whitespaces and filter out all the lines which
+   # are not part of a json object
    line = line.lstrip()
    if len(line) > 0 and (line[0] == '>' or line[0] == '<'):
       return line[1:].lstrip()
@@ -29,23 +28,20 @@ def read_from_file(filename: str) -> str:
    #result will be appended to the string "document"
    #document - output string which will contain multiple JSON objects which are not separated by a
    #comma 
-   #writefile = open("out.log", "w")
    document = ""
    with open(filename) as fileobject:
     for line in fileobject:
-        cleanline = sanitize_line(line)
-        #writefile.write(cleanline)
-        document += cleanline
+        clean_line = sanitize_line(line)
+        document += clean_line
    return document
 
-def main(inputfile: str, methods: list) -> list:
+def parse(inputfile: str, methods: list) -> list:
    # inputfile - filename containing the Truffle --verbose-rpc output
    # methods   - array containing the values of the key 'method' based which we will filter the
    #             json objects
    document = read_from_file(inputfile)
-   jsonobjectlist = get_json_objects(document, methods)
-   #pprint((jsonobjectlist))
-   return jsonobjectlist
+   json_object_list = get_json_objects(document, methods)
+   return json_object_list
 
 
 if __name__ == "__main__":
@@ -61,4 +57,4 @@ if __name__ == "__main__":
          print ('test.py -i <inputfile> ')
          sys.exit()
       elif opt in ("-i", "--ifile"):
-         main(arg, methods)
+         parse(arg, methods)
