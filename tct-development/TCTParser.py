@@ -21,7 +21,7 @@ def get_all_json_objects(input: str) -> list:
       results.append(data)
    return results
 
-def get_json_objects(json_list: list, methods: list) -> json:
+def get_json_objects(json_list: list, methods: list) -> dict:
    id_list = []
    result = {}
    for json_item in json_list:
@@ -81,3 +81,4 @@ if __name__ == "__main__":
       elif opt in ("-i", "--ifile"):
          sanitize_file(arg, arg+'.json')
          pprint (parse(arg+'.json',['eth_getBlockByNumber']))
+
