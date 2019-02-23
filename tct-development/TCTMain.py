@@ -2,6 +2,7 @@ import os
 import signal
 import time
 import TCTParser
+import TCTFiller
 import sys,getopt
 from subprocess import Popen, CalledProcessError, PIPE, DEVNULL
 
@@ -12,12 +13,12 @@ def run_truffle_test_to_file(truffle_path: str, input_file_path: str, output_fil
    process = Popen(command, stdout = PIPE, stderr = PIPE, universal_newlines = True)
    output, error = process.communicate()
    process.terminate()
-   print (error)
    #the output can be too large to be sent as an argument to another function, 
    #write it in a temp file instead
-   opened_file = open(output_file_path, "w")
-   opened_file.write(output)
-   opened_file.close()
+   with open(output_file_path, "w") as output_file_object:
+      output_file_object.write(output)
+   #clean the truffle output
+   TCTParser.sanitize_file(output_file_path, output_file_path + '.json')
 
 def main(argv: list) -> None:
 #use examples:
@@ -49,12 +50,14 @@ def main(argv: list) -> None:
 
    truffle_test_dir = contract_path + "/test" #TODO:validate data
    program_path = os.getcwd() # -- TCT PATH
+   ganache_args.append("--acctKeys")
+   ganache_args.append("account_data.tmp")
    parser_methods = ["eth_sendTransaction", "eth_call"]
 
    if not is_ganache_global:
       ganache_path = contract_path + "/node_modules/.bin/ganache-cli"
    else:
-      ganache_path = "ganache-cli" #TODO: not tested
+      ganache_path = "ganache-cli"
 
    if not is_truffle_global:
       truffle_path = contract_path + "/node_modules/.bin/truffle"
@@ -72,7 +75,7 @@ def main(argv: list) -> None:
       for file in os.listdir(truffle_test_dir):
          if file.endswith(".js"): #TODO: or .sol
             test_path = os.path.join(truffle_test_dir, file)
-            temp_output_file = os.path.join(program_path, file)
+            temp_output_file = os.path.join(program_path, file + ".tmp")
 
             print("[INFO] Starting truffle test: " + test_path)
             os.chdir(contract_path)
@@ -80,21 +83,10 @@ def main(argv: list) -> None:
 
             print("[INFO] Run TCTParser on file: " + file)
             os.chdir(program_path)
-            json_object_list = TCTParser.parse(file, parser_methods)
+            json_object_list = TCTParser.parse(temp_output_file + '.json', parser_methods)
             #temp file no longer needed
-            #TODO: change file extension to .tmp?
-            os.remove(file)
+            TCTFiller.create_test(file, "template.json", "account_data.tmp", "Byzantium")
 
-            #TODO: this is temporary until a kevm test template is made
-            print("[INFO] Writing TCTParser output to file: " + file)
-            output_file = open(file, "w")
-            for item in json_object_list:
-               output_file.write("%s\n" % item)
-            output_file.close()
-
-            #TODO: generate the kevm input using the template
-            #TODO: run the kevm script which returns a list of the used opcodes
-            #TODO: store the used opcode list in a main list
    except KeyboardInterrupt:
       os.killpg(os.getpgid(ganache.pid), signal.SIGTERM)
       sys.exit(2)
