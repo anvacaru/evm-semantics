@@ -4,6 +4,7 @@ import time
 import TCTParser
 import TCTFiller
 import sys,getopt
+import json
 from subprocess import Popen, CalledProcessError, PIPE, DEVNULL
 
 def run_truffle_test_to_file(truffle_path: str, input_file_path: str, output_file_path: str) -> None:
@@ -50,8 +51,6 @@ def main(argv: list) -> None:
 
    truffle_test_dir = contract_path + "/test" #TODO:validate data
    program_path = os.getcwd() # -- TCT PATH
-   ganache_args.append("--acctKeys")
-   ganache_args.append("account_data.tmp")
    parser_methods = ["eth_sendTransaction", "eth_call"]
 
    if not is_ganache_global:
@@ -84,9 +83,10 @@ def main(argv: list) -> None:
             print("[INFO] Run TCTParser on file: " + file)
             os.chdir(program_path)
             json_object_list = TCTParser.parse(temp_output_file + '.json', parser_methods)
+            with open(temp_output_file + '.json', 'w') as test_output:
+               json.dump(json_object_list,test_output)
+            TCTFiller.create_evm_test("automatedtest.evm",json_object_list)
             #temp file no longer needed
-            TCTFiller.create_test(file, "template.json", "account_data.tmp", "Byzantium")
-
    except KeyboardInterrupt:
       os.killpg(os.getpgid(ganache.pid), signal.SIGTERM)
       sys.exit(2)

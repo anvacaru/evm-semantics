@@ -3,41 +3,90 @@
 import json
 from pprint import pprint
 
-def get_json(file: str)->dict:
-    with open(file) as data_file:
-        data = json.loads(data_file.read())
-    return data
+def parse_word(string: str) -> str:
+    return "#parseWord(\"{}\")".format(string)
 
-def get_all_accounts(account_input_file: str) -> dict:
-    pre_json = {}
-    account_list = get_json(account_input_file)
-    for key, account in account_list["addresses"].items():
-        pre_json[key] = get_account_data(account["account"])
-    return pre_json
+def parse_byte_stack(string: str) -> str:
+    return "#parseByteStack(\"{}\")".format(string)
 
-def get_account_data(account: dict) -> dict:
-    storage = {}
-    empty_code_hash = "0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470"
+def evm_make_account(address: str) -> str:
+    return "mkAcct {}\n".format(parse_word(address))
 
-    if "storage" in account:
-        storage = account["storage"]
-    if account["codeHash"] != empty_code_hash:
-        print("[ERROR] Invalid codeHash for account: ")
-        pprint(account)
+def evm_load_account(address: str,
+                     balance: str,
+                     storage: str,
+                     nonce  : str,
+                     code   : str) -> str:
+    evm_address = parse_word(address)
+    evm_balance = balance + "0000000"
+    evm_nonce = nonce
+    if len(code) == 0:
+       evm_code = ".WordStack"
+    if len(storage) == 0:
+        evm_storage = ".Map"
+    evm_account ="""
+load "account" : {{ {0}: {{ "balance" : {1}
+                       , "nonce"   : {2}
+                       , "code"    : {3}
+                       , "storage" : {4}
+                       }}
+                 }}
+""".format(evm_address,evm_balance,evm_nonce,evm_code,evm_storage)
+    return evm_account
 
-    new_json_account = {
-        "balance": account["balance"],
-        "nonce": account["nonce"],
-        "code": "",
-        "storage": storage
-    }
-    return new_json_account
+def evm_make_transaction(index: int)-> str:
+    return "mkTX {}\n\n".format(index)
 
-def create_test(test_name: str, template_path: str,accounts_path: str, network: str):
-    template = get_json(template_path)["Template_Byzantium"]
-    accounts = get_all_accounts(accounts_path)
-    template['pre'] = accounts
-    template['network'] = network
-    with open(test_name + '_test.json','w') as output_file_object:
-        json.dump(template, output_file_object)
+def evm_load_transaction(index: int, key: str, value: str) -> str:
+    return "load \"transaction\" : {{ {0} : {{ \"{1}\" : {2} }}}}\n\n".format(index,key,value)
 
+def evm_loadTx(address: str) -> str:
+    return "loadTx ({})\n\n".format(parse_word(address))
+
+def generate_evm_account(address: str) -> str:
+    output = evm_make_account(address)
+    output += evm_load_account(address
+                              ,balance = "100"
+                              ,storage = ""
+                              ,nonce   = "0"
+                              ,code    = "")
+    return output
+
+def generate_evm_transaction(index: int, data_set: dict) -> str:
+    output = evm_make_transaction(index)
+    if "data" in data_set:
+        output += evm_load_transaction(index, "data", parse_byte_stack(data_set["data"]))
+    else:
+        print("[ERROR] Missing data for transaction: " + index)
+    if "to" in data_set:
+        output += evm_load_transaction(index, "to", parse_word(data_set["to"]))
+    else: 
+        output += evm_load_transaction(index, "nonce", parse_word("0x0000000000000000"))
+    output += evm_load_transaction(index, "gasLimit", parse_word("0x1312d00"))
+    output += evm_loadTx(data_set["from"])
+    return output
+
+def create_evm_test(file_name: str, json_object_list: list):
+    index = 1
+    address_list = []
+    output = open(file_name,"w")
+    for object_id, element in json_object_list.items():
+       data_set = element["request"]["params"][0]
+       address = data_set["from"]
+       if address not in address_list:
+           address_list.append(address)
+           output.write(generate_evm_account(address))
+       output.write(generate_evm_transaction(index, data_set))
+       index += 1
+    output.write(".EthereumSimulation")
+    output.close()
+
+
+# test_data_set={
+#                     "from": "0x6f844d92b568bb19fab251473478d629d10b58f4",
+#                     "gas": "0x6691b7",
+#                     "gasPrice": "0x4a817c800",
+#                     "to": "0x5e81f07cda88acd3a76fae55d3004fcce632cc46",
+#                     "data": "0xfdacd5760000000000000000000000000000000000000000000000000000000000000001"
+#                 }
+# print(generate_evm_transaction(0,test_data_set))
