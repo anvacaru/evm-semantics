@@ -31,6 +31,7 @@ load "account" : {{ {0}: {{ "balance" : {1}
                        , "storage" : {4}
                        }}
                  }}
+
 """.format(evm_address,evm_balance,evm_nonce,evm_code,evm_storage)
     return evm_account
 

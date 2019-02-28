@@ -21,6 +21,25 @@ def run_truffle_test_to_file(truffle_path: str, input_file_path: str, output_fil
    #clean the truffle output
    TCTParser.sanitize_file(output_file_path, output_file_path + '.json')
 
+
+def print_help() -> None:
+   print(
+"""
+usage python3 TCTMain.py [options] where:
+
+   Options:
+   --contract-folder , -c
+      specify the path to the contract folder
+   --ganache-arg, -l
+      add an optional argument for ganache-cli
+   --global-ganache, -g
+      specifies that ganache-cli is installed globally on this machine
+   --global-truffle, -t
+      specifies that truffle is installed globally on this machine
+   -h
+      shows this message
+""")
+
 def main(argv: list) -> None:
 #use examples:
 #python3 TCTMain.py -c /home/anvacaru/Work/cryptozombies -g -t
@@ -80,12 +99,14 @@ def main(argv: list) -> None:
             os.chdir(contract_path)
             run_truffle_test_to_file(truffle_path, test_path, temp_output_file)
 
-            print("[INFO] Run TCTParser on file: " + file)
+            print("[INFO] Parsing file: " + file)
+            print("[INFO] Filtering methods: ")
+            print(parser_methods)
             os.chdir(program_path)
             json_object_list = TCTParser.parse(temp_output_file + '.json', parser_methods)
-            with open(temp_output_file + '.json', 'w') as test_output:
-               json.dump(json_object_list,test_output)
-            TCTFiller.create_evm_test("automatedtest.evm",json_object_list)
+
+            print("[INFO] Creating test file: "+file+".evm")
+            TCTFiller.create_evm_test(file + '.evm', json_object_list)
             #temp file no longer needed
    except KeyboardInterrupt:
       os.killpg(os.getpgid(ganache.pid), signal.SIGTERM)
@@ -104,21 +125,3 @@ def main(argv: list) -> None:
 
 if __name__ == "__main__":
    main(sys.argv[1:])
-
-def print_help() -> None:
-   print(
-"""
-usage python3 TCTMain.py [options] where:
-
-   Options:
-   --contract-folder , -c
-      specify the path to the contract folder
-   --ganache-arg, -l
-      add an optional argument for ganache-cli
-   --global-ganache, -g
-      specifies that ganache-cli is installed globally on this machine
-   --global-truffle, -t
-      specifies that truffle is installed globally on this machine
-   -h
-      shows this message
-""")
