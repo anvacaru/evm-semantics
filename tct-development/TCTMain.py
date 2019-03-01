@@ -5,19 +5,14 @@ import TCTParser
 import TCTFiller
 import sys,getopt
 import json
-from subprocess import Popen, CalledProcessError, PIPE, DEVNULL
+from subprocess import Popen, run, CalledProcessError, PIPE, DEVNULL
 
 def run_truffle_test_to_file(truffle_path: str, input_file_path: str, output_file_path: str) -> None:
-   command = [truffle_path]
-   command.append('test ' + input_file_path)
-   command.append('--verbose-rpc')
-   process = Popen(command, stdout = PIPE, stderr = PIPE, universal_newlines = True)
-   output, error = process.communicate()
-   process.terminate()
-   #the output can be too large to be sent as an argument to another function, 
-   #write it in a temp file instead
+   command = truffle_path
+   command+=(' test ' + input_file_path)
+   command+=(' --verbose-rpc')
    with open(output_file_path, 'w') as output_file_object:
-      output_file_object.write(output)
+      process = run(command, stdout = output_file_object, stderr = PIPE, shell=True, check=True, universal_newlines = True)
    #clean the truffle output
    TCTParser.sanitize_file(output_file_path, output_file_path + '.json')
 
@@ -71,8 +66,8 @@ def process_test_file( test_name       : str
    json_object_list = TCTParser.parse(test_output_path + '.json', methods_filter)
 
    # #for demonstration purposes
-   # with open(test_output_path + '.demo.json','w') as demo_output:
-   #    json.dump(json_object_list, demo_output)
+   with open(test_output_path + '.demo.json','w') as demo_output:
+      json.dump(json_object_list, demo_output)
 
    print('[INFO] Creating test file: ' + test_name + '.evm')
    TCTFiller.create_evm_test(test_name + '.evm', json_object_list)
@@ -82,6 +77,7 @@ def main(argv: list) -> None:
 #use examples:
 #python3 TCTMain.py -c /home/anvacaru/Work/cryptozombies -g -t
 #python3 TCTMain.py -c /home/anvacaru/Work/safe-contracts -l "-l 20000000 --noVMErrorsOnRPCResponse true"
+#python3 TCTMain.py -c /home/anvacaru/Work/openzeppelin-solidity -f ERC20.test.js
    ganache_args = []
    contract_path = ''
    is_ganache_global = False
@@ -154,6 +150,9 @@ def main(argv: list) -> None:
    except Exception as e:
       print('[EXCEPTION]: ')
       print(e)
+      exc_type, exc_obj, exc_tb = sys.exc_info()
+      fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+      print(exc_type, fname, exc_tb.tb_lineno)
       os.killpg(os.getpgid(ganache.pid), signal.SIGTERM)
       sys.exit(2)
 

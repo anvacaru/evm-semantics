@@ -2,6 +2,7 @@
 
 import json
 from pprint import pprint
+import TCTParser
 
 def parse_word(string: str) -> str:
     return "#parseWord(\"{}\")".format(string)
@@ -58,7 +59,7 @@ def generate_evm_transaction(index: int, data_set: dict) -> str:
     if "data" in data_set:
         output += evm_load_transaction(index, "data", parse_byte_stack(data_set["data"]))
     else:
-        print("[ERROR] Missing data for transaction: " + index)
+        print("[ERROR] Missing data for transaction: " + str(index))
     if "to" in data_set:
         output += evm_load_transaction(index, "to", parse_word(data_set["to"]))
     else: 
