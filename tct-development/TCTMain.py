@@ -9,18 +9,29 @@ from subprocess import Popen, CalledProcessError, PIPE, DEVNULL
 
 def run_truffle_test_to_file(truffle_path: str, input_file_path: str, output_file_path: str) -> None:
    command = [truffle_path]
-   command.append("test " + input_file_path)
-   command.append("--verbose-rpc")
+   command.append('test ' + input_file_path)
+   command.append('--verbose-rpc')
    process = Popen(command, stdout = PIPE, stderr = PIPE, universal_newlines = True)
    output, error = process.communicate()
    process.terminate()
    #the output can be too large to be sent as an argument to another function, 
    #write it in a temp file instead
-   with open(output_file_path, "w") as output_file_object:
+   with open(output_file_path, 'w') as output_file_object:
       output_file_object.write(output)
    #clean the truffle output
    TCTParser.sanitize_file(output_file_path, output_file_path + '.json')
 
+def truffle_compile(truffle_path: str, contract_path: str) -> None:
+   origin_path = os.getcwd()
+   os.chdir(contract_path)
+   command = [truffle_path]
+   command.append('compile')
+   print('[INFO] Compiling test files..')
+   process = Popen(command, stdout=PIPE, universal_newlines = True)
+   output, error = process.communicate()
+   print(output)
+   process.terminate()
+   os.chdir(origin_path)
 
 def print_help() -> None:
    print(
@@ -29,7 +40,7 @@ usage python3 TCTMain.py [options] where:
 
    Options:
    --contract-folder , -c
-      specify the path to the contract folder
+      specify the path of the contract folder
    --ganache-arg, -l
       add an optional argument for ganache-cli
    --global-ganache, -g
@@ -40,17 +51,45 @@ usage python3 TCTMain.py [options] where:
       shows this message
 """)
 
+def process_test_file( test_name       : str
+                     , contract_path   : str
+                     , truffle_test_dir: str
+                     , truffle_path    : str
+                     , methods_filter  : list):
+
+   origin_path = os.getcwd()
+   test_path = os.path.join(truffle_test_dir, test_name)
+   test_output_path = os.path.join(origin_path, test_name + '.tmp')
+   print('[INFO] Starting truffle test: ' + test_path)
+   os.chdir(contract_path)
+   run_truffle_test_to_file(truffle_path, test_path, test_output_path)
+
+   print('[INFO] Parsing file: ' + test_name)
+   print('[INFO] Filtering methods: ')
+   print(methods_filter)
+   os.chdir(origin_path)
+   json_object_list = TCTParser.parse(test_output_path + '.json', methods_filter)
+
+   # #for demonstration purposes
+   # with open(test_output_path + '.demo.json','w') as demo_output:
+   #    json.dump(json_object_list, demo_output)
+
+   print('[INFO] Creating test file: ' + test_name + '.evm')
+   TCTFiller.create_evm_test(test_name + '.evm', json_object_list)
+   #temp file no longer needed
+
 def main(argv: list) -> None:
 #use examples:
 #python3 TCTMain.py -c /home/anvacaru/Work/cryptozombies -g -t
 #python3 TCTMain.py -c /home/anvacaru/Work/safe-contracts -l "-l 20000000 --noVMErrorsOnRPCResponse true"
    ganache_args = []
-   contract_path = ""
+   contract_path = ''
    is_ganache_global = False
    is_truffle_global = False
+   specific_test = ''
 
    try:
-      opts, args = getopt.getopt(argv,"hl:c:tg",["ganache-arg=","contract-folder=","global-truffle","global-ganache"])
+      opts, args = getopt.getopt(argv,'hl:c:tgf:',['ganache-arg=','contract-folder=','global-truffle','global-ganache'])
       #TODO: add an option to compute the coverage of a single test?
    except getopt.GetoptError:
       print_help()
@@ -59,69 +98,70 @@ def main(argv: list) -> None:
       if opt == '-h':
          print_help()
          sys.exit()
-      elif opt in ("-l", "--ganache-arg"):
+      elif opt in ('-l', '--ganache-arg'):
          ganache_args = arg.split()
-      elif opt in ("-c", "--contract-folder"):
+      elif opt in ('-c', '--contract-folder'):
          contract_path = arg
-      elif opt in ("-g", "--global-ganache"):
+      elif opt in ('-g', '--global-ganache'):
          is_ganache_global = True;
-      elif opt in ("-t", "--global-truffle"):
+      elif opt in ('-t', '--global-truffle'):
          is_truffle_global = True;
+      elif opt in ('-f'):
+         specific_test = arg
 
-   truffle_test_dir = contract_path + "/test" #TODO:validate data
+   truffle_test_dir = contract_path + '/test' #TODO:validate data
    program_path = os.getcwd() # -- TCT PATH
-   parser_methods = ["eth_sendTransaction", "eth_call"]
+   methods_filter = ['eth_sendTransaction', 'eth_call']
 
    if not is_ganache_global:
-      ganache_path = contract_path + "/node_modules/.bin/ganache-cli"
+      ganache_path = contract_path + '/node_modules/.bin/ganache-cli'
    else:
-      ganache_path = "ganache-cli"
+      ganache_path = 'ganache-cli'
 
    if not is_truffle_global:
-      truffle_path = contract_path + "/node_modules/.bin/truffle"
+      truffle_path = contract_path + '/node_modules/.bin/truffle'
    else:
-      truffle_path = "truffle"
+      truffle_path = 'truffle'
 
    ganache_command = [ganache_path] + ganache_args
-   print("[INFO] Initializing ganache-cli..")
 
    #TODO: avoid the use of a single try-except block
    try:
+      truffle_compile(truffle_path, contract_path)
+      print('[INFO] Initializing ganache-cli..')
       ganache = Popen(ganache_command, stdout = DEVNULL, stderr = DEVNULL, start_new_session = True)
       time.sleep(5)
 
-      for file in os.listdir(truffle_test_dir):
-         if file.endswith(".js"): #TODO: or .sol
-            test_path = os.path.join(truffle_test_dir, file)
-            temp_output_file = os.path.join(program_path, file + ".tmp")
+      if len(specific_test) != 0:
+         found = False
+         print('[INFO] Running in Single file mode..')
+         for root, dirs, files in os.walk(truffle_test_dir):
+            for file in files:
+               if file == specific_test:
+                     found = True
+                     process_test_file(file, contract_path, root, truffle_path, methods_filter)
+         if not found:
+            print("[ERROR] File " + specific_test + " not found!")
+      else:
+         for root, dirs, files in os.walk(truffle_test_dir):
+            for file in files:
+               if file.endswith('.js'):
+                     process_test_file(file, contract_path, root, truffle_path, methods_filter)
 
-            print("[INFO] Starting truffle test: " + test_path)
-            os.chdir(contract_path)
-            run_truffle_test_to_file(truffle_path, test_path, temp_output_file)
-
-            print("[INFO] Parsing file: " + file)
-            print("[INFO] Filtering methods: ")
-            print(parser_methods)
-            os.chdir(program_path)
-            json_object_list = TCTParser.parse(temp_output_file + '.json', parser_methods)
-
-            print("[INFO] Creating test file: "+file+".evm")
-            TCTFiller.create_evm_test(file + '.evm', json_object_list)
-            #temp file no longer needed
    except KeyboardInterrupt:
       os.killpg(os.getpgid(ganache.pid), signal.SIGTERM)
       sys.exit(2)
    except Exception as e:
-      print("[EXCEPTION]: ")
+      print('[EXCEPTION]: ')
       print(e)
       os.killpg(os.getpgid(ganache.pid), signal.SIGTERM)
       sys.exit(2)
 
-   print( "[INFO] Terminating Ganache..")
+   print( '[INFO] Terminating Ganache..')
    os.killpg(os.getpgid(ganache.pid), signal.SIGTERM)
 
    #TODO: merge the main list of lists
    #TODO: return count(merged main list)/count(contract opcodes) - ish
 
-if __name__ == "__main__":
+if __name__ == '__main__':
    main(sys.argv[1:])
