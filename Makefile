@@ -220,10 +220,10 @@ endif
 # Tests
 # -----
 
-# Override this with `make TEST=echo` to list tests instead of running
+# Override this with `make TEST=true` to list tests instead of running
 TEST_CONCRETE_BACKEND:=ocaml
 TEST_SYMBOLIC_BACKEND:=java
-TEST:=./kevm test-profile
+TEST:=./kevm
 
 test-all: test-all-concrete test-all-proof
 test: test-concrete test-proof test-java
@@ -252,24 +252,7 @@ test-conformance: test-vm test-bchain
 
 vm_tests=$(wildcard tests/ethereum-tests/VMTests/*/*.json)
 slow_vm_tests=$(wildcard tests/ethereum-tests/VMTests/vmPerformance/*.json)
-bad_vm_tests= $(wildcard tests/ethereum-tests/VMTests/vmBlockInfoTest/blockhash*.json) \
-              $(wildcard tests/ethereum-tests/VMTests/vmEnvironmentalInfo/balance*.json) \
-              $(wildcard tests/ethereum-tests/VMTests/vmSystemOperations/*call*.json) \
-              $(wildcard tests/ethereum-tests/VMTests/vmSystemOperations/*Call*.json) \
-              $(wildcard tests/ethereum-tests/VMTests/vmSystemOperations/*create*.json) \
-              tests/ethereum-tests/VMTests/vmEnvironmentalInfo/env1.json \
-              tests/ethereum-tests/VMTests/vmEnvironmentalInfo/extcodecopy0AddressTooBigRight.json \
-              tests/ethereum-tests/VMTests/vmEnvironmentalInfo/ExtCodeSizeAddressInputTooBigRightMyAddress.json \
-              tests/ethereum-tests/VMTests/vmRandomTest/201503102037PYTHON.json \
-              tests/ethereum-tests/VMTests/vmRandomTest/201503102148PYTHON.json \
-              tests/ethereum-tests/VMTests/vmRandomTest/201503102300PYTHON.json \
-              tests/ethereum-tests/VMTests/vmRandomTest/201503110050PYTHON.json \
-              tests/ethereum-tests/VMTests/vmRandomTest/201503110226PYTHON_DUP6.json \
-              tests/ethereum-tests/VMTests/vmRandomTest/randomTest.json \
-              tests/ethereum-tests/VMTests/vmSystemOperations/PostToNameRegistrator0.json \
-              tests/ethereum-tests/VMTests/vmSystemOperations/PostToReturn1.json
-all_vm_tests=$(filter-out $(bad_vm_tests), $(vm_tests))
-quick_vm_tests=$(filter-out $(slow_vm_tests), $(all_vm_tests))
+quick_vm_tests=$(filter-out $(slow_vm_tests), $(vm_tests))
 
 haskell_vm_tests=tests/ethereum-tests/VMTests/vmArithmeticTest/add0.json \
                  tests/ethereum-tests/VMTests/vmIOandFlowOperations/pop1.json
@@ -280,10 +263,10 @@ test-vm: $(quick_vm_tests:=.test)
 test-vm-haskell: $(haskell_vm_tests:=.haskelltest)
 
 tests/ethereum-tests/VMTests/%.test: tests/ethereum-tests/VMTests/%
-	MODE=VMTESTS SCHEDULE=DEFAULT $(TEST) --backend $(TEST_CONCRETE_BACKEND) $<
+	MODE=VMTESTS SCHEDULE=DEFAULT $(TEST) test --backend $(TEST_CONCRETE_BACKEND) $<
 
 tests/ethereum-tests/VMTests/%.haskelltest: tests/ethereum-tests/VMTests/%
-	MODE=VMTESTS SCHEDULE=DEFAULT $(TEST) --backend haskell $<
+	MODE=VMTESTS SCHEDULE=DEFAULT $(TEST) test --backend haskell $<
 
 # BlockchainTests
 
@@ -305,7 +288,7 @@ test-slow-bchain: $(slow_bchain_tests:=.test)
 test-bchain: $(quick_bchain_tests:=.test)
 
 tests/ethereum-tests/BlockchainTests/%.test: tests/ethereum-tests/BlockchainTests/%
-	$(TEST) --backend $(TEST_CONCRETE_BACKEND) $<
+	$(TEST) test --backend $(TEST_CONCRETE_BACKEND) $<
 
 # InteractiveTests
 
@@ -315,10 +298,10 @@ interactive_tests:=$(wildcard tests/interactive/*.json) \
 test-interactive: $(interactive_tests:=.test)
 
 tests/interactive/%.json.test: tests/interactive/%.json
-	$(TEST) --backend $(TEST_CONCRETE_BACKEND) $<
+	$(TEST) test --backend $(TEST_CONCRETE_BACKEND) $<
 
 tests/interactive/gas-analysis/%.evm.test: tests/interactive/gas-analysis/%.evm tests/interactive/gas-analysis/%.evm.out
-	MODE=GASANALYZE $(TEST) --backend $(TEST_CONCRETE_BACKEND) $<
+	MODE=GASANALYZE $(TEST) test --backend $(TEST_CONCRETE_BACKEND) $<
 
 # ProofTests
 
@@ -331,7 +314,7 @@ test-java: tests/ethereum-tests/BlockchainTests/GeneralStateTests/stExample/add1
 	./kevm run --backend java $< | diff - tests/templates/output-success-java.json
 
 $(proof_dir)/%.test: $(proof_dir)/% split-proof-tests
-	$(TEST) --backend $(TEST_SYMBOLIC_BACKEND) $<
+	$(TEST) test --backend $(TEST_SYMBOLIC_BACKEND) $<
 
 split-proof-tests: tests/proofs/make.timestamp
 	$(MAKE) -C tests/proofs $@

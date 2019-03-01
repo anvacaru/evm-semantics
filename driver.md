@@ -79,6 +79,7 @@ To do so, we'll extend sort `JSON` with some EVM specific syntax, and provide a 
  // ----------------------------------
     rule <mode> NORMAL     </mode> <k> start => #execute    ... </k>
     rule <mode> VMTESTS    </mode> <k> start => #execute    ... </k>
+    rule <mode> COVERAGE   </mode> <k> start => #execute    ... </k>
     rule <mode> GASANALYZE </mode> <k> start => #gasAnalyze ... </k>
 
     syntax EthereumCommand ::= "flush"
@@ -118,12 +119,13 @@ To do so, we'll extend sort `JSON` with some EVM specific syntax, and provide a 
  // ---------------------------------------------
     rule <k> loadTx(ACCTFROM)
           => #loadAccount #newAddr(ACCTFROM, NONCE)
-          ~> #create ACCTFROM #newAddr(ACCTFROM, NONCE) (GLIMIT -Int G0(SCHED, CODE, true)) VALUE CODE
+          ~> #create ACCTFROM #newAddr(ACCTFROM, NONCE) VALUE CODE
           ~> #finishTx ~> #finalizeTx(false) ~> startTx
          ...
          </k>
          <schedule> SCHED </schedule>
          <gasPrice> _ => GPRICE </gasPrice>
+         <previousGas> _ => GLIMIT -Int G0(SCHED, CODE, true) </previousGas>
          <origin> _ => ACCTFROM </origin>
          <callDepth> _ => -1 </callDepth>
          <txPending> ListItem(TXID:Int) ... </txPending>
@@ -140,7 +142,7 @@ To do so, we'll extend sort `JSON` with some EVM specific syntax, and provide a 
          <account>
            <acctID> ACCTFROM </acctID>
            <balance> BAL => BAL -Int (GLIMIT *Int GPRICE) </balance>
-           <nonce> NONCE => NONCE +Int 1 </nonce>
+           <nonce> NONCE </nonce>
            ...
          </account>
          <touchedAccounts> _ => SetItem(MINER) </touchedAccounts>
@@ -148,12 +150,13 @@ To do so, we'll extend sort `JSON` with some EVM specific syntax, and provide a 
     rule <k> loadTx(ACCTFROM)
           => #loadAccount ACCTTO
           ~> #lookupCode  ACCTTO
-          ~> #call ACCTFROM ACCTTO ACCTTO (GLIMIT -Int G0(SCHED, DATA, false)) VALUE VALUE DATA false
+          ~> #call ACCTFROM ACCTTO ACCTTO VALUE VALUE DATA false
           ~> #finishTx ~> #finalizeTx(false) ~> startTx
          ...
          </k>
          <schedule> SCHED </schedule>
          <gasPrice> _ => GPRICE </gasPrice>
+         <previousGas> _ => GLIMIT -Int G0(SCHED, DATA, false) </previousGas>
          <origin> _ => ACCTFROM </origin>
          <callDepth> _ => -1 </callDepth>
          <txPending> ListItem(TXID:Int) ... </txPending>
@@ -354,6 +357,11 @@ State Manipulation
  // ----------------------------------
     rule <k> clear => clearTX ~> clearBLOCK ~> clearNETWORK ... </k>
          <analysis> _ => .Map </analysis>
+         <mode> EXECMODE </mode>
+      requires EXECMODE in (SetItem(NORMAL) SetItem(VMTESTS))
+    
+    rule <k> clear => clearTX ~> clearBLOCK ~> clearNETWORK ... </k>
+         <mode> COVERAGE </mode>
 
     syntax EthreumCommand ::= "clearTX"
  // -----------------------------------
