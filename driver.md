@@ -178,6 +178,41 @@ To do so, we'll extend sort `JSON` with some EVM specific syntax, and provide a 
          <touchedAccounts> _ => SetItem(MINER) </touchedAccounts>
       requires ACCTTO =/=K .Account
 
+    syntax EthereumCommand ::= callTx ( Account )
+ // ---------------------------------------------
+    rule <k> callTx(ACCTFROM)
+          => #loadAccount ACCTTO
+          ~> #lookupCode  ACCTTO
+          ~> #call ACCTFROM ACCTTO ACCTTO VALUE VALUE DATA false
+          ~> #finishTx ~> #finalizeTx(false) ~> startTx
+         ...
+         </k>
+         <schedule> SCHED </schedule>
+         <gasPrice> _ => GPRICE </gasPrice>
+         <previousGas> _ => GLIMIT -Int G0(SCHED, DATA, false) </previousGas>
+         <origin> _ => ACCTFROM </origin>
+         <callDepth> _ => -1 </callDepth>
+         <txPending> ListItem(TXID:Int) ... </txPending>
+         <coinbase> MINER </coinbase>
+         <message>
+           <msgID>      TXID   </msgID>
+           <txGasPrice> GPRICE </txGasPrice>
+           <txGasLimit> GLIMIT </txGasLimit>
+           <to>         ACCTTO </to>
+           <value>      VALUE  </value>
+           <data>       DATA   </data>
+           ...
+         </message>
+         <account>
+           <acctID> ACCTFROM </acctID>
+           <balance> BAL => BAL -Int (GLIMIT *Int GPRICE) </balance>
+           ...
+         </account>
+         <touchedAccounts> _ => SetItem(MINER) </touchedAccounts>
+      requires ACCTTO =/=K .Account
+
+
+
     syntax EthereumCommand ::= "#finishTx"
  // --------------------------------------
     rule <statusCode> _:ExceptionalStatusCode </statusCode> <k> #halt ~> #finishTx => #popCallStack ~> #popWorldState                   ... </k>
