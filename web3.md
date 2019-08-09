@@ -74,6 +74,10 @@ module WEB3
          <method> "eth_accounts" </method>
     rule <k> #runRPCCall => #eth_getBalance ... </k>
          <method> "eth_getBalance" </method>
+    rule <k> #runRPCCall => #eth_getStorageAt ... </k>
+         <method> "eth_getStorageAt" </method>
+    rule <k> #runRPCCall => #eth_getCode ... </k>
+         <method> "eth_getCode" </method>
 
     syntax KItem ::= "#net_version"
  // -------------------------------
@@ -104,7 +108,7 @@ module WEB3
          <activeAccounts> ACCTS </activeAccounts>
 
     syntax JSONList ::= #acctsToJArray( Set ) [function]
- // ------------------------------------------------
+ // ----------------------------------------------------
     rule #acctsToJArray( .Set ) => .JSONList
     rule #acctsToJArray( SetItem( ACCT ) ACCTS:Set ) => Int2String( ACCT ), #acctsToJArray( ACCTS )
 
@@ -119,5 +123,26 @@ module WEB3
            <balance> ACCTBALANCE </balance>
          ... </account>
 
+    syntax KItem ::= "#eth_getStorageAt"
+ // ------------------------------------
+    rule <k> #eth_getStorageAt => #sendResponse( { "id" : CALLID, "jsonrpc" : JSONRPC, "result" : Int2String( STORAGEVALUE ) } ) ... </k>
+         <jsonrpc> JSONRPC </jsonrpc>
+         <callid> CALLID </callid>
+         <params> [ DATA, QUANTITY, TAG, .JSONList ] </params>
+         <account> ...
+           <acctID> DATA </acctID> // TODO: Make sure DATA is in proper format (the RPC uses hex strings)
+           <storage> STORAGE[QUANTITY |-> STORAGEVALUE] </storage>
+         ... </account>
+
+    syntax KItem ::= "#eth_getCode"
+ // -------------------------------
+    rule <k> #eth_getCode => #sendResponse( { "id" : CALLID, "jsonrpc" : JSONRPC, "result" : Int2String( CODE ) } ) ... </k>
+         <jsonrpc> JSONRPC </jsonrpc>
+         <callid> CALLID </callid>
+         <params> [ DATA, TAG, .JSONList ] </params>
+         <account> ...
+           <acctID> DATA </acctID> // TODO: Make sure DATA is in proper format (the RPC uses hex strings)
+           <code> CODE </code>
+         ... </account>
 endmodule
 ```
